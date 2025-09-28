@@ -120,11 +120,11 @@ function drawCard() {
 function canUseCard(card: string) {
   if (turn.value !== 1 || winner.value) return false
   if (playerRound.value < 3) return false // 玩家前三次不能用卡牌
-  if (round.value < 4) return false // 前三回合禁止使用卡牌
-  if (card === '飞沙走石' && usageCounts.value.FEI >= 1) return false
-  if (card === '静如止水' && usageCounts.value.JING >= 2) return false
-  if (card === '力拔山兮' && usageCounts.value.LI >= 1) return false
-  return true
+  // 不再限制 usageCounts
+  // if (card === '飞沙走石' && usageCounts.value.FEI >= 1) return false
+  // if (card === '静如止水' && usageCounts.value.JING >= 2) return false
+  // if (card === '力拔山兮' && usageCounts.value.LI >= 1) return false
+  return hand.value.includes(card)
 }
 
 function useCard(card: string) {
@@ -132,7 +132,6 @@ function useCard(card: string) {
   if (actionUsed.value) return // 已行动则不能再用卡牌
 
   if (card === '飞沙走石') {
-    usageCounts.value.FEI++
     // 随机移除一枚 AI 棋子
     const aiStones: {x:number,y:number}[] = []
     for (let y=0;y<boardSize;y++){
@@ -150,13 +149,11 @@ function useCard(card: string) {
   }
 
   if (card === '静如止水') {
-    usageCounts.value.JING++
     log('使用【静如止水】：冻结 AI 一回合，你可再次行动')
     turn.value = 1
   }
 
   if (card === '力拔山兮') {
-    usageCounts.value.LI++
     // 随机移除最多 3 个 AI 棋子
     const aiStones: {x:number,y:number}[] = []
     for (let y=0;y<boardSize;y++){
