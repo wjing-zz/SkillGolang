@@ -95,6 +95,10 @@ const cardPool = [
 const playerNoCardRounds = ref(0)
 const aiNoCardRounds = ref(0)
 
+// 静如止水额外行动机会
+const playerExtraMove = ref(0)
+const aiExtraMove = ref(0)
+
 // 权重抽卡
 function weightedDrawCard(hand: string[]) {
   const totalWeight = cardPool.reduce((sum, c) => sum + c.weight, 0)
@@ -124,12 +128,13 @@ function canUseCard(card: string) {
   // if (card === '飞沙走石' && usageCounts.value.FEI >= 1) return false
   // if (card === '静如止水' && usageCounts.value.JING >= 2) return false
   // if (card === '力拔山兮' && usageCounts.value.LI >= 1) return false
+  if (playerExtraMove.value > 0) return false // 静如止水期间禁止用卡牌
   return hand.value.includes(card)
 }
 
 function useCard(card: string) {
   if (!canUseCard(card)) return
-  if (actionUsed.value) return // 已行动则不能再用卡牌
+  if (actionUsed.value) return
 
   if (card === '飞沙走石') {
     // 随机移除一枚 AI 棋子
@@ -149,8 +154,12 @@ function useCard(card: string) {
   }
 
   if (card === '静如止水') {
-    log('使用【静如止水】：冻结 AI 一回合，你可再次行动')
-    turn.value = 1
+    log('使用【静如止水】：你将连续落两个子（不能用卡牌）')
+    playerExtraMove.value = 2
+    actionUsed.value = false
+    const idx = hand.value.indexOf(card)
+    if (idx>=0) hand.value.splice(idx,1)
+    return // 不切换回合
   }
 
   if (card === '力拔山兮') {
@@ -171,19 +180,9 @@ function useCard(card: string) {
     log(`使用【力拔山兮】：震碎棋盘，移除了 AI 的 ${removed} 枚棋子`)
   }
 
-  // 移除已使用的手牌
   const idx = hand.value.indexOf(card)
   if (idx>=0) hand.value.splice(idx,1)
-
-  actionUsed.value = true // 标记本回合已行动
-
-  // 静如止水：不切换回合，玩家可再次行动
-  if (card === '静如止水') {
-    turn.value = 1
-    actionUsed.value = false // 新一回合可行动
-    return
-  }
-
+  actionUsed.value = true
   nextTurn()
 }
 
@@ -202,14 +201,14 @@ function aiDrawCard() {
 function aiCanUseCard(card: string) {
   if (turn.value !== 2 || winner.value) return false
   if (aiRound.value < 3) return false // AI前三次不能用卡牌
-  if (round.value < 4) return false // 前三回合禁止使用卡牌
-  if (card === '飞沙走石' && aiUsageCounts.value.FEI >= 1) return false
-  if (card === '静如止水' && aiUsageCounts.value.JING >= 2) return false
-  if (card === '力拔山兮' && aiUsageCounts.value.LI >= 1) return false
-  return true
+  if (aiExtraMove.value > 0) return false // 静如止水期间禁止用卡牌
+  // if (card === '飞沙走石' && aiUsageCounts.value.FEI >= 1) return false
+  // if (card === '静如止水' && aiUsageCounts.value.JING >= 2) return false
+  // if (card === '力拔山兮' && aiUsageCounts.value.LI >= 1) return false
+  return aiHand.value.includes(card)
 }
 
-function aiUseCard(card: string) {
+function aiUseCard(card: string): 'extra' | 'normal' | false {
   if (!aiCanUseCard(card)) return false
 
   if (card === '飞沙走石') {
@@ -231,9 +230,12 @@ function aiUseCard(card: string) {
   }
 
   if (card === '静如止水') {
-    aiUsageCounts.value.JING++
-    log('AI使用【静如止水】：冻结玩家一回合，AI可再次行动')
-    turn.value = 2
+    log('AI使用【静如止水】：AI将连续落两个子（不能用卡牌）')
+    aiExtraMove.value = 2
+    actionUsed.value = false
+    const idx = aiHand.value.indexOf(card)
+    if (idx>=0) aiHand.value.splice(idx,1)
+    return 'extra'
   }
 
   if (card === '力拔山兮') {
@@ -255,10 +257,9 @@ function aiUseCard(card: string) {
     log(`AI使用【力拔山兮】：震碎棋盘，移除了玩家的 ${removed} 枚棋子`)
   }
 
-  // 移除已使用的手牌
   const idx = aiHand.value.indexOf(card)
   if (idx>=0) aiHand.value.splice(idx,1)
-  return true
+  return 'normal'
 }
 
 // ===== 基础逻辑 =====
@@ -271,7 +272,7 @@ const cardDrawnThisTurn = ref(false) // 每回合是否已抽卡
 function handlePlace(x: number, y: number) {
   if (winner.value || turn.value !== 1) return
   if (board.value[y][x] !== 0) return
-  if (actionUsed.value) return // 已行动则不能再落子
+  if (actionUsed.value) return
 
   board.value[y][x] = 1
   playerRound.value++
@@ -314,6 +315,18 @@ function handlePlace(x: number, y: number) {
     return
   }
 
+  if (playerExtraMove.value > 0) {
+    playerExtraMove.value--
+    actionUsed.value = false // 允许继续落子
+    // 只有当 playerExtraMove.value === 0 时才切换回合
+    if (playerExtraMove.value === 0) {
+      actionUsed.value = true
+      nextTurn()
+    }
+    return
+  }
+
+  actionUsed.value = true
   nextTurn()
 }
 
@@ -321,30 +334,29 @@ function aiTurn() {
   if (winner.value || turn.value !== 2) return
   if (actionUsed.value) return
 
-  cardDrawnThisTurn.value = false // 新回合开始，未抽卡
+  cardDrawnThisTurn.value = false
 
-  // AI优先用卡牌
-  for (const card of aiHand.value.slice()) {
-    if (aiCanUseCard(card)) {
-      aiUseCard(card)
-      actionUsed.value = true
-      // 静如止水：AI可再次行动
-      if (card === '静如止水') {
-        turn.value = 2
-        actionUsed.value = false
-        setTimeout(aiTurn, 300)
-        return
+  if (aiExtraMove.value === 0) {
+    for (const card of aiHand.value.slice()) {
+      if (aiCanUseCard(card)) {
+        const result = aiUseCard(card)
+        if (result === 'extra') {
+          aiTurn()
+          return
+        } else if (result === 'normal') {
+          actionUsed.value = true
+          nextTurn()
+          return
+        }
       }
-      nextTurn()
-      return
     }
   }
 
-  // 否则落子
   const move = findAiMove()
   if (!move) {
     winner.value = null
     log('棋盘已满或无可下位置，平局')
+    actionUsed.value = true
     nextTurn()
     return
   }
@@ -388,6 +400,19 @@ function aiTurn() {
     return
   }
 
+  if (aiExtraMove.value > 0) {
+    aiExtraMove.value--
+    actionUsed.value = false
+    if (aiExtraMove.value === 0) {
+      actionUsed.value = true
+      nextTurn()
+    } else {
+      setTimeout(aiTurn, 300)
+    }
+    return
+  }
+
+  actionUsed.value = true
   nextTurn()
 }
 
@@ -550,6 +575,8 @@ function restartGame() {
   aiRound.value = 0     // 重置AI落子次数
   actionUsed.value = false
   cardDrawnThisTurn.value = false
+  playerExtraMove.value = 0
+  aiExtraMove.value = 0
   log('新的一局开始！')
 }
 initBoard()
