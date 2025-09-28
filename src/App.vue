@@ -105,6 +105,9 @@ function weightedDrawCard(hand: string[]) {
   let r = Math.random() * totalWeight
   for (const card of cardPool) {
     if (r < card.weight) {
+      // 新增：卡槽已存在同类卡牌则不加入
+      if (hand.includes(card.name)) return
+      if (hand.length >= 3) return
       hand.push(card.name)
       log(`获得${card.rarity}卡牌：${card.name}`)
       return
@@ -116,7 +119,10 @@ function weightedDrawCard(hand: string[]) {
 function drawCard() {
   const cards = ['飞沙走石', '静如止水', '力拔山兮']
   if (hand.value.length >= 3) return
-  const card = cards[Math.floor(Math.random() * cards.length)]
+  // 新增：只抽没有的卡牌
+  const available = cards.filter(card => !hand.value.includes(card))
+  if (available.length === 0) return
+  const card = available[Math.floor(Math.random() * available.length)]
   hand.value.push(card)
   log(`获得卡牌：${card}`)
 }
@@ -193,7 +199,10 @@ const aiUsageCounts = ref({ FEI: 0, JING: 0, LI: 0 })
 function aiDrawCard() {
   const cards = ['飞沙走石', '静如止水', '力拔山兮']
   if (aiHand.value.length >= 3) return
-  const card = cards[Math.floor(Math.random() * cards.length)]
+  // 新增：只抽没有的卡牌
+  const available = cards.filter(card => !aiHand.value.includes(card))
+  if (available.length === 0) return
+  const card = available[Math.floor(Math.random() * available.length)]
   aiHand.value.push(card)
   log(`AI获得卡牌：${card}`)
 }
