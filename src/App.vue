@@ -88,7 +88,7 @@ const usageCounts = ref({ FEI: 0, JING: 0, LI: 0 })
 const cardPool = [
   { name: '飞沙走石', rarity: '紫', weight: 3 },
   { name: '静如止水', rarity: '紫', weight: 3 },
-  { name: '力拔山兮', rarity: '金', weight: 1 }
+  { name: '力拔山兮', rarity: '金', weight: 0.3 }
 ]
 
 // 连续未抽卡计数
