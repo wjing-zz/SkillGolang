@@ -13,6 +13,7 @@
           <div v-for="(line, i) in logs" :key="i">{{ line }}</div>
         </div>
         <div v-if="winner" class="winner">🎉 {{ winner }} 获胜！</div>
+        <button style="margin-top: 20px;" @click="restartGame" class="restart-btn">重新开始</button>
       </aside>
     </div>
   </div>
@@ -131,6 +132,16 @@ function findAiMove(): { x: number; y: number } | null {
   }
   if (empties.length === 0) return null
   return empties[Math.floor(Math.random() * empties.length)]
+}
+function initBoard() {
+  board.value = Array.from({ length: boardSize }, () => Array(boardSize).fill(0))
+}
+function restartGame() {
+  initBoard()
+  turn.value = 1
+  logs.value = []
+  winner.value = null
+  log('新的一局开始！')
 }
 </script>
 
