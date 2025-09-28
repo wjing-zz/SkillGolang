@@ -1,5 +1,6 @@
 <template>
   <div class="app">
+    <BackgroundMusic />
     <h1>
       技能五子棋
       <button class="rule-btn" @click="showRules = true">玩法说明</button>
@@ -80,6 +81,7 @@
 import { ref } from 'vue'
 import GomokuBoard from './components/GomokuBoard.vue'
 import RulesModel from './components/RulesModel.vue'
+import BackgroundMusic from './components/BackgroundMusic.vue'
 const showRules = ref(false)
 type Player = 0 | 1 | 2 // 0=空, 1=玩家, 2=AI
 const boardSize = 15
