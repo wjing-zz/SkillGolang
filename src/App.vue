@@ -1,6 +1,7 @@
 <template>
   <div class="app">
-    <h1>五子棋 + 卡牌原型</h1>
+    <h1>技能五子棋</h1>
+    <button class="rule-btn" @click="showRules = true">玩法说明</button>
     <div class="game">
       <GomokuBoard
         :size="boardSize"
@@ -15,21 +16,41 @@
         <div v-if="winner" class="winner">🎉 {{ winner }} 获胜！</div>
 
         <h3 style="margin-top:20px;">玩家手牌</h3>
-        <div v-if="hand.length === 0">暂无卡牌</div>
-        <div v-for="(card, i) in hand" :key="i" class="card">
-          <span>{{ card }}</span>
-          <button @click="useCard(card)" :disabled="!canUseCard(card)">
-            使用
-          </button>
+        <div class="card-row">
+          <div
+            v-for="i in 3"
+            :key="i"
+            class="card-slot"
+          >
+            <div v-if="hand[i-1]" class="card-ui" :class="getCardRarityClass(hand[i-1])">
+              <span class="card-name">{{ hand[i-1] }}</span>
+              <button @click="useCard(hand[i-1])" :disabled="!canUseCard(hand[i-1])">
+                使用
+              </button>
+            </div>
+            <div v-else class="card-ui empty-card">
+              <span class="card-empty">空</span>
+            </div>
+          </div>
         </div>
 
         <h3 style="margin-top:20px;">AI手牌</h3>
-        <div v-if="aiHand.length === 0">暂无卡牌</div>
-        <div v-for="(card, i) in aiHand" :key="i" class="card">
-          <span>{{ card }}</span>
-          <button disabled>
-            AI自动使用
-          </button>
+        <div class="card-row">
+          <div
+            v-for="i in 3"
+            :key="i"
+            class="card-slot"
+          >
+            <div v-if="aiHand[i-1]" class="card-ui" :class="getCardRarityClass(aiHand[i-1])">
+              <span class="card-name">{{ aiHand[i-1] }}</span>
+              <button disabled>
+                AI自动使用
+              </button>
+            </div>
+            <div v-else class="card-ui empty-card">
+              <span class="card-empty">空</span>
+            </div>
+          </div>
         </div>
 
         <button style="margin-top: 20px;" @click="restartGame" class="restart-btn">
@@ -37,13 +58,17 @@
         </button>
       </aside>
     </div>
+
+    <RulesModel :show="showRules" @close="showRules = false" />
   </div>
 </template>
+
 
 <script lang="ts" setup>
 import { ref } from 'vue'
 import GomokuBoard from './components/GomokuBoard.vue'
-
+import RulesModel from './components/RulesModel.vue'
+const showRules = ref(false)
 type Player = 0 | 1 | 2 // 0=空, 1=玩家, 2=AI
 const boardSize = 15
 const board = ref<Player[][]>([])
@@ -566,6 +591,13 @@ function blocksOpponentFour(board: Player[][], x: number, y: number, opponent: P
 
   return false;
 }
+function getCardRarityClass(cardName: string) {
+  const card = cardPool.find(c => c.name === cardName)
+  if (!card) return ''
+  if (card.rarity === '紫') return 'rare-card'
+  if (card.rarity === '金') return 'epic-card'
+  return ''
+}
 </script>
 
 <style>
@@ -621,5 +653,69 @@ function blocksOpponentFour(board: Player[][], x: number, y: number, opponent: P
   font-size: 18px;
   font-weight: bold;
   margin: 10px 0;
+}
+.card-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.card-slot {
+  flex: 1;
+}
+
+.card-ui {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 10px;
+  border: 2px solid #bbb;
+  min-height: 70px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  padding: 8px 4px;
+  position: relative;
+}
+
+.card-ui .card-name {
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.card-ui button {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: none;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.card-ui button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.empty-card {
+  background: #f5f5f5;
+  border: 2px dashed #ccc;
+}
+
+.card-empty {
+  color: #aaa;
+  font-size: 14px;
+}
+
+.rare-card {
+  border-color: #a259e6;
+  box-shadow: 0 0 8px #a259e6;
+}
+
+.epic-card {
+  border-color: gold;
+  box-shadow: 0 0 8px gold;
 }
 </style>
