@@ -51,12 +51,38 @@ const turn = ref<Player>(1)
 const logs = ref<string[]>([])
 const winner = ref<string | null>(null)
 const round = ref(1) // 新增：记录当前回合数
+const actionUsed = ref(false) // 标记是否已行动
 const playerRound = ref(0) // 玩家落子次数
 const aiRound = ref(0)     // AI落子次数
 
 // ===== 玩家卡牌系统 =====
 const hand = ref<string[]>([]) // 玩家手牌
 const usageCounts = ref({ FEI: 0, JING: 0, LI: 0 })
+
+// 卡牌池及权重
+const cardPool = [
+  { name: '飞沙走石', rarity: '紫', weight: 3 },
+  { name: '静如止水', rarity: '紫', weight: 3 },
+  { name: '力拔山兮', rarity: '金', weight: 1 }
+]
+
+// 连续未抽卡计数
+const playerNoCardRounds = ref(0)
+const aiNoCardRounds = ref(0)
+
+// 权重抽卡
+function weightedDrawCard(hand: string[]) {
+  const totalWeight = cardPool.reduce((sum, c) => sum + c.weight, 0)
+  let r = Math.random() * totalWeight
+  for (const card of cardPool) {
+    if (r < card.weight) {
+      hand.push(card.name)
+      log(`获得${card.rarity}卡牌：${card.name}`)
+      return
+    }
+    r -= card.weight
+  }
+}
 
 function drawCard() {
   const cards = ['飞沙走石', '静如止水', '力拔山兮']
@@ -218,6 +244,8 @@ function log(msg: string) {
   logs.value.push(`[${new Date().toLocaleTimeString()}] ${msg}`)
 }
 
+const cardDrawnThisTurn = ref(false) // 每回合是否已抽卡
+
 function handlePlace(x: number, y: number) {
   if (winner.value || turn.value !== 1) return
   if (board.value[y][x] !== 0) return
@@ -229,31 +257,49 @@ function handlePlace(x: number, y: number) {
   round.value++
 
   actionUsed.value = true // 标记本回合已行动
+  cardDrawnThisTurn.value = false // 新回合开始，未抽卡
+
+  let blocked = false
+  // 判断是否阻止了AI四连
+  board.value[y][x] = 1
+  if (!cardDrawnThisTurn.value && blocksOpponentFour(board.value, x, y, 2)) {
+    weightedDrawCard(hand.value)
+    blocked = true
+    playerNoCardRounds.value = 0
+    cardDrawnThisTurn.value = true
+  }
+  // 判断是否形成三连
+  if (!cardDrawnThisTurn.value && !blocked && isNInRow(board.value, x, y, 1, 3) && Math.random() < 0.5) {
+    weightedDrawCard(hand.value)
+    playerNoCardRounds.value = 0
+    cardDrawnThisTurn.value = true
+  } else if (!cardDrawnThisTurn.value && !blocked) {
+    playerNoCardRounds.value++
+    if (playerNoCardRounds.value >= 3) {
+      weightedDrawCard(hand.value)
+      playerNoCardRounds.value = 0
+      cardDrawnThisTurn.value = true
+    }
+  }
+
+  if (!cardDrawnThisTurn.value && Math.random()<0.3) {
+    drawCard()
+    cardDrawnThisTurn.value = true
+  }
 
   if (checkWin(board.value, x, y, 1)) {
     winner.value = '玩家'
     return
   }
 
-  if (Math.random()<0.3) drawCard()
   nextTurn()
-}
-
-function nextTurn() {
-  // 切换回合
-  if (turn.value === 1) {
-    turn.value = 2
-    actionUsed.value = false
-    setTimeout(aiTurn, 300)
-  } else {
-    turn.value = 1
-    actionUsed.value = false
-  }
 }
 
 function aiTurn() {
   if (winner.value || turn.value !== 2) return
   if (actionUsed.value) return
+
+  cardDrawnThisTurn.value = false // 新回合开始，未抽卡
 
   // AI优先用卡牌
   for (const card of aiHand.value.slice()) {
@@ -289,6 +335,32 @@ function aiTurn() {
 
   actionUsed.value = true
 
+  let blocked = false
+  board.value[y][x] = 2
+  if (!cardDrawnThisTurn.value && blocksOpponentFour(board.value, x, y, 1)) {
+    weightedDrawCard(aiHand.value)
+    blocked = true
+    aiNoCardRounds.value = 0
+    cardDrawnThisTurn.value = true
+  }
+  if (!cardDrawnThisTurn.value && !blocked && isNInRow(board.value, x, y, 2, 3) && Math.random() < 0.5) {
+    weightedDrawCard(aiHand.value)
+    aiNoCardRounds.value = 0
+    cardDrawnThisTurn.value = true
+  } else if (!cardDrawnThisTurn.value && !blocked) {
+    aiNoCardRounds.value++
+    if (aiNoCardRounds.value >= 3) {
+      weightedDrawCard(aiHand.value)
+      aiNoCardRounds.value = 0
+      cardDrawnThisTurn.value = true
+    }
+  }
+
+  if (!cardDrawnThisTurn.value && Math.random()<0.3) {
+    aiDrawCard()
+    cardDrawnThisTurn.value = true
+  }
+
   if (checkWin(board.value, x, y, 2)) {
     winner.value = 'AI'
     return
@@ -297,7 +369,19 @@ function aiTurn() {
   nextTurn()
 }
 
-// ===== 胜负判定、AI落子、初始化与重置（保持原样） =====
+function nextTurn() {
+  // 切换回合
+  cardDrawnThisTurn.value = false // 新回合重置
+  if (turn.value === 1) {
+    turn.value = 2
+    actionUsed.value = false
+    setTimeout(aiTurn, 300)
+  } else {
+    turn.value = 1
+    actionUsed.value = false
+  }
+}
+
 function checkWin(board: number[][], x: number, y: number, who: number): boolean {
   const directions = [
     { x: 1, y: 0 }, // 横向
@@ -443,9 +527,45 @@ function restartGame() {
   playerRound.value = 0 // 重置玩家落子次数
   aiRound.value = 0     // 重置AI落子次数
   actionUsed.value = false
+  cardDrawnThisTurn.value = false
   log('新的一局开始！')
 }
 initBoard()
+function blocksOpponentFour(board: Player[][], x: number, y: number, opponent: Player): boolean {
+  const directions = [
+    { x: 1, y: 0 }, // Horizontal
+    { x: 0, y: 1 }, // Vertical
+    { x: 1, y: 1 }, // Diagonal (\)
+    { x: 1, y: -1 } // Diagonal (/)
+  ];
+
+  for (const { x: dx, y: dy } of directions) {
+    let count = 1;
+
+    // Check forward
+    for (let step = 1; step < 4; step++) {
+      const nx = x + dx * step;
+      const ny = y + dy * step;
+      if (nx < 0 || ny < 0 || nx >= boardSize || ny >= boardSize) break;
+      if (board[ny][nx] === opponent) count++;
+      else break;
+    }
+
+    // Check backward
+    for (let step = 1; step < 4; step++) {
+      const nx = x - dx * step;
+      const ny = y - dy * step;
+      if (nx < 0 || ny < 0 || nx >= boardSize || ny >= boardSize) break;
+      if (board[ny][nx] === opponent) count++;
+      else break;
+    }
+
+    // If placing here blocks a potential four-in-a-row
+    if (count === 4) return true;
+  }
+
+  return false;
+}
 </script>
 
 <style>
