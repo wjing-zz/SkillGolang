@@ -44,7 +44,7 @@ const gridStyle = computed(() => ({
   height: 90vmin;  /* 高度保持一致，保证正方形 */
   max-width: 600px;
   max-height: 600px;
-  margin: auto;
+  /* margin: auto; */
 }
 
 .cell {

@@ -10,19 +10,17 @@
         :board="board"
         @place="handlePlace"
       />
-      <aside class="sidebar">
+      <aside style="margin-top:1rem;" class="sidebar">
         <label class="challenge-label">挑战：</label>
-        <select v-model="opponent" class="opponent-select" @change="restartGame">
-        <option value="子棋">子棋</option>
-        <option value="张技能五">张技能五</option>
-      </select>
-        <h3>日志</h3>
-        <div class="log">
-          <div v-for="(line, i) in logs" :key="i">{{ line.replace(/AI/g, opponent) }}</div>
-        </div>
-        <div v-if="winner" class="winner">🎉 {{ winner === '玩家' ? '玩家' : opponent }} 获胜！</div>
+          <select v-model="opponent" class="opponent-select" @change="restartGame">
+          <option value="子棋">子棋</option>
+          <option value="张技能五">张技能五</option>
+        </select>
 
-        <h3 style="margin-top:20px;">玩家手牌</h3>
+        <button style="margin-left: 1rem;" @click="restartGame" class="restart-btn">
+          重新开始
+        </button>
+        <h3 style="margin-top:1rem;">玩家手牌</h3>
         <div class="card-row">
           <div
             v-for="i in 3"
@@ -41,7 +39,7 @@
           </div>
         </div>
 
-        <h3 style="margin-top:20px;">{{ opponent }}手牌</h3>
+        <h3 style="margin-top:1rem;">{{ opponent }}手牌</h3>
         <div class="card-row">
           <div
             v-for="i in 3"
@@ -60,9 +58,18 @@
           </div>
         </div>
 
-        <button style="margin-top: 20px;" @click="restartGame" class="restart-btn">
-          重新开始
-        </button>
+        <h3>日志</h3>
+        <div class="log">
+          <div
+            v-for="(line, i) in logs"
+            :key="i"
+            :class="isAiLog(line) ? 'ai-log' : ''"
+          >
+            {{ line.replace(/AI/g, opponent) }}
+          </div>
+        </div>
+        <div v-if="winner" class="winner">🎉 {{ winner === '玩家' ? '玩家' : opponent }} 获胜！</div>
+
       </aside>
     </div>
     <RulesModel :show="showRules" @close="showRules = false" />
@@ -636,6 +643,11 @@ function getCardRarityClass(cardName: string) {
   if (card.rarity === '金') return 'epic-card'
   return ''
 }
+
+function isAiLog(line: string) {
+  // 判断是否为AI相关日志（可根据实际AI日志前缀调整）
+  return line.includes('AI') || line.includes(opponent)
+}
 </script>
 
 <style>
@@ -785,5 +797,16 @@ function getCardRarityClass(cardName: string) {
 }
 .challenge-text:hover {
   background: #e0e0e0;
+}
+
+.ai-log {
+  color: #555;
+  font-style: italic;
+}
+
+@media screen and (min-width: 100px) and (max-width: 900px) {
+  .game {
+    flex-direction: column;
+  }
 }
 </style>
