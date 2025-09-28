@@ -1,7 +1,9 @@
 <template>
   <div class="app">
-    <h1>技能五子棋</h1>
-    <button class="rule-btn" @click="showRules = true">玩法说明</button>
+    <h1>
+      技能五子棋
+      <button class="rule-btn" @click="showRules = true">玩法说明</button>
+    </h1>
     <div class="game">
       <GomokuBoard
         :size="boardSize"
@@ -9,11 +11,16 @@
         @place="handlePlace"
       />
       <aside class="sidebar">
+        <label class="challenge-label">挑战：</label>
+        <select v-model="opponent" class="opponent-select" @change="restartGame">
+        <option value="子棋">子棋</option>
+        <option value="张技能五">张技能五</option>
+      </select>
         <h3>日志</h3>
         <div class="log">
-          <div v-for="(line, i) in logs" :key="i">{{ line }}</div>
+          <div v-for="(line, i) in logs" :key="i">{{ line.replace(/AI/g, opponent) }}</div>
         </div>
-        <div v-if="winner" class="winner">🎉 {{ winner }} 获胜！</div>
+        <div v-if="winner" class="winner">🎉 {{ winner === '玩家' ? '玩家' : opponent }} 获胜！</div>
 
         <h3 style="margin-top:20px;">玩家手牌</h3>
         <div class="card-row">
@@ -34,7 +41,7 @@
           </div>
         </div>
 
-        <h3 style="margin-top:20px;">AI手牌</h3>
+        <h3 style="margin-top:20px;">{{ opponent }}手牌</h3>
         <div class="card-row">
           <div
             v-for="i in 3"
@@ -44,7 +51,7 @@
             <div v-if="aiHand[i-1]" class="card-ui" :class="getCardRarityClass(aiHand[i-1])">
               <span class="card-name">{{ aiHand[i-1] }}</span>
               <button disabled>
-                AI自动使用
+                {{ opponent }}自动使用
               </button>
             </div>
             <div v-else class="card-ui empty-card">
@@ -58,11 +65,9 @@
         </button>
       </aside>
     </div>
-
     <RulesModel :show="showRules" @close="showRules = false" />
   </div>
 </template>
-
 
 <script lang="ts" setup>
 import { ref } from 'vue'
@@ -79,7 +84,7 @@ const round = ref(1) // 新增：记录当前回合数
 const actionUsed = ref(false) // 标记是否已行动
 const playerRound = ref(0) // 玩家落子次数
 const aiRound = ref(0)     // AI落子次数
-
+const opponent = ref('子棋')
 // ===== 玩家卡牌系统 =====
 const hand = ref<string[]>([]) // 玩家手牌
 const usageCounts = ref({ FEI: 0, JING: 0, LI: 0 })
@@ -750,5 +755,35 @@ function getCardRarityClass(cardName: string) {
 .epic-card {
   border-color: gold;
   box-shadow: 0 0 8px gold;
+}
+
+.opponent-select {
+  margin-left: 0;
+  padding: 4px 10px;
+  font-size: 15px;
+  border-radius: 6px;
+  border: 1px solid #bbb;
+  background: #f8f8ff;
+  vertical-align: middle;
+}
+
+.challenge-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.challenge-label {
+  font-weight: bold;
+  margin-right: 8px;
+}
+.challenge-text {
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f5f5f5;
+  transition: background 0.2s;
+}
+.challenge-text:hover {
+  background: #e0e0e0;
 }
 </style>
