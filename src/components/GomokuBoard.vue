@@ -78,8 +78,8 @@ const starPoints = computed(() => {
   position: relative;
   background: #d2a675;
   border: 2px solid #8b5a2b;     /* 内框 */
-  width: 90vmin;
-  height: 90vmin;
+  width: 80vmin;
+  height: 80vmin;
   max-width: 600px;
   max-height: 600px;
   margin: auto;
