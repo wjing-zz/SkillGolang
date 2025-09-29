@@ -384,7 +384,7 @@ function aiTurn() {
   log("AI 正在思考中…")
 
   setTimeout(() => {
-    const move = findAiMove(board.value, boardSize, checkWin, isNInRow)
+    const move = findAiMove(board.value, boardSize, checkWin, isNInRow,opponent.value)
     if (!move) {
       winner.value = null
       log('棋盘已满或无可下位置，平局')
