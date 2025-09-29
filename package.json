@@ -1,5 +1,4 @@
 {
-  "homepage" : "https://wjing-zz.github.io/SkillGolang",
   "name": "skillgobang",
   "version": "0.0.0",
   "private": true,
@@ -10,13 +9,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "gh-pages -d dist"
+
   },
   "dependencies": {
     "vue": "^3.5.18"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
+    "gh-pages": "^6.3.0",
     "vite": "^7.0.6",
     "vite-plugin-vue-devtools": "^8.0.0"
   }
