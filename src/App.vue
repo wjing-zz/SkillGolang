@@ -66,6 +66,7 @@
     </div>
     <RulesModel :show="showRules" @close="showRules = false" />
     <Popup :message="popupMessage" :trigger="popupTrigger" />
+    <WinCelebration :show="winner === '玩家'" :duration="2800" :count="100" />
   </div>
 </template>
 
@@ -77,6 +78,7 @@ import BackgroundMusic from './components/BackgroundMusic.vue'
 import GameLog from './components/GameLog.vue'
 import { findAiMove } from './lib/commonMethod'
 import Popup from './components/Popup.vue'
+import WinCelebration from './components/WinCelebration.vue'
 
 const popupMessage = ref('')
 const popupTrigger = ref(0)
