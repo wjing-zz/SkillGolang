@@ -59,21 +59,13 @@
           </div>
         </div>
 
-        <h3>日志</h3>
-        <div class="log">
-          <div
-            v-for="(line, i) in logs"
-            :key="i"
-            :class="isAiLog(line) ? 'ai-log' : ''"
-          >
-            {{ line.replace(/AI/g, opponent) }}
-          </div>
-        </div>
+        <GameLog :logs="logs" :opponent="opponent"/>
         <div v-if="winner" class="winner">🎉 {{ winner === '玩家' ? '玩家' : opponent }} 获胜！</div>
 
       </aside>
     </div>
     <RulesModel :show="showRules" @close="showRules = false" />
+    <Popup :message="popupMessage" :trigger="popupTrigger" />
   </div>
 </template>
 
@@ -82,6 +74,12 @@ import { ref } from 'vue'
 import GomokuBoard from './components/GomokuBoard.vue'
 import RulesModel from './components/RulesModel.vue'
 import BackgroundMusic from './components/BackgroundMusic.vue'
+import GameLog from './components/GameLog.vue'
+import { findAiMove } from './lib/commonMethod'
+import Popup from './components/Popup.vue'
+
+const popupMessage = ref('')
+const popupTrigger = ref(0)
 const showRules = ref(false)
 type Player = 0 | 1 | 2 // 0=空, 1=玩家, 2=AI
 const boardSize = 15
@@ -174,6 +172,7 @@ function useCard(card: string) {
   }
 
   if (card === '静如止水') {
+    showPopup(card)
     log('使用【静如止水】：你将连续落两个子（不能用卡牌）')
     playerExtraMove.value = 2
     actionUsed.value = false
@@ -200,6 +199,7 @@ function useCard(card: string) {
     log(`使用【力拔山兮】：震碎棋盘，移除了 AI 的 ${removed} 枚棋子`)
   }
 
+  showPopup(card)
   const idx = hand.value.indexOf(card)
   if (idx>=0) hand.value.splice(idx,1)
   actionUsed.value = true
@@ -253,6 +253,7 @@ function aiUseCard(card: string): 'extra' | 'normal' | false {
   }
 
   if (card === '静如止水') {
+    showPopup(card)
     log('AI使用【静如止水】：AI将连续落两个子（不能用卡牌）')
     aiExtraMove.value = 2
     actionUsed.value = false
@@ -279,7 +280,7 @@ function aiUseCard(card: string): 'extra' | 'normal' | false {
     }
     log(`AI使用【力拔山兮】：震碎棋盘，移除了玩家的 ${removed} 枚棋子`)
   }
-
+ showPopup(card)
   const idx = aiHand.value.indexOf(card)
   if (idx>=0) aiHand.value.splice(idx,1)
   return 'normal'
@@ -359,6 +360,7 @@ function aiTurn() {
 
   cardDrawnThisTurn.value = false
 
+  // 如果有额外行动，先尝试用卡
   if (aiExtraMove.value === 0) {
     for (const card of aiHand.value.slice()) {
       if (aiCanUseCard(card)) {
@@ -375,69 +377,75 @@ function aiTurn() {
     }
   }
 
-  const move = findAiMove()
-  if (!move) {
-    winner.value = null
-    log('棋盘已满或无可下位置，平局')
+  // 👉 在这里加延时，模拟思考
+  const delay = 800 + Math.random() * 1200 // 0.8s ~ 2s
+  log("AI 正在思考中…")
+
+  setTimeout(() => {
+    const move = findAiMove(board.value, boardSize, checkWin, isNInRow)
+    if (!move) {
+      winner.value = null
+      log('棋盘已满或无可下位置，平局')
+      actionUsed.value = true
+      nextTurn()
+      return
+    }
+
+    const { x, y } = move
+    board.value[y][x] = 2
+    aiRound.value++
+    log(`AI 落子 (${x},${y})`)
+    round.value++
+
     actionUsed.value = true
-    nextTurn()
-    return
-  }
 
-  const { x, y } = move
-  board.value[y][x] = 2
-  aiRound.value++
-  log(`AI 落子 (${x},${y})`)
-  round.value++
-
-  actionUsed.value = true
-
-  let blocked = false
-  board.value[y][x] = 2
-  if (!cardDrawnThisTurn.value && blocksOpponentFour(board.value, x, y, 1)) {
-    weightedDrawCard(aiHand.value)
-    blocked = true
-    aiNoCardRounds.value = 0
-    cardDrawnThisTurn.value = true
-  }
-  if (!cardDrawnThisTurn.value && !blocked && isNInRow(board.value, x, y, 2, 3) && Math.random() < 0.5) {
-    weightedDrawCard(aiHand.value)
-    aiNoCardRounds.value = 0
-    cardDrawnThisTurn.value = true
-  } else if (!cardDrawnThisTurn.value && !blocked) {
-    aiNoCardRounds.value++
-    if (aiNoCardRounds.value >= 3) {
+    let blocked = false
+    if (!cardDrawnThisTurn.value && blocksOpponentFour(board.value, x, y, 1)) {
       weightedDrawCard(aiHand.value)
+      blocked = true
       aiNoCardRounds.value = 0
       cardDrawnThisTurn.value = true
     }
-  }
-
-  if (!cardDrawnThisTurn.value && Math.random()<0.3) {
-    aiDrawCard()
-    cardDrawnThisTurn.value = true
-  }
-
-  if (checkWin(board.value, x, y, 2)) {
-    winner.value = 'AI'
-    return
-  }
-
-  if (aiExtraMove.value > 0) {
-    aiExtraMove.value--
-    actionUsed.value = false
-    if (aiExtraMove.value === 0) {
-      actionUsed.value = true
-      nextTurn()
-    } else {
-      setTimeout(aiTurn, 300)
+    if (!cardDrawnThisTurn.value && !blocked && isNInRow(board.value, x, y, 2, 3) && Math.random() < 0.5) {
+      weightedDrawCard(aiHand.value)
+      aiNoCardRounds.value = 0
+      cardDrawnThisTurn.value = true
+    } else if (!cardDrawnThisTurn.value && !blocked) {
+      aiNoCardRounds.value++
+      if (aiNoCardRounds.value >= 3) {
+        weightedDrawCard(aiHand.value)
+        aiNoCardRounds.value = 0
+        cardDrawnThisTurn.value = true
+      }
     }
-    return
-  }
 
-  actionUsed.value = true
-  nextTurn()
+    if (!cardDrawnThisTurn.value && Math.random() < 0.3) {
+      aiDrawCard()
+      cardDrawnThisTurn.value = true
+    }
+
+    if (checkWin(board.value, x, y, 2)) {
+      winner.value = 'AI'
+      return
+    }
+
+    if (aiExtraMove.value > 0) {
+      aiExtraMove.value--
+      actionUsed.value = false
+      if (aiExtraMove.value === 0) {
+        actionUsed.value = true
+        nextTurn()
+      } else {
+        setTimeout(aiTurn, 300)
+      }
+      return
+    }
+
+    actionUsed.value = true
+    nextTurn()
+  }, delay)
 }
+
 
 function nextTurn() {
   // 切换回合
@@ -487,70 +495,6 @@ function checkWin(board: number[][], x: number, y: number, who: number): boolean
   return false
 }
 
-function findAiMove(): { x: number; y: number } | null {
-  // 1. 阻挡玩家四连
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      if (board.value[y][x] !== 0) continue
-      board.value[y][x] = 1
-      if (checkWin(board.value, x, y, 1)) {
-        board.value[y][x] = 0
-        return { x, y }
-      }
-      board.value[y][x] = 0
-    }
-  }
-  // 2. 阻挡玩家三连
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      if (board.value[y][x] !== 0) continue
-      board.value[y][x] = 1
-      let count = 0
-      if (isNInRow(board.value, x, y, 1, 3)) count++
-      board.value[y][x] = 0
-      if (count > 0) return { x, y }
-    }
-  }
-  // 3. 优先在玩家棋子附近落子
-  const candidates: { x: number; y: number }[] = []
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      if (board.value[y][x] !== 0) continue
-      // 检查周围是否有玩家棋子
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          if (dx === 0 && dy === 0) continue
-          const nx = x + dx
-          const ny = y + dy
-          if (
-            nx >= 0 &&
-            ny >= 0 &&
-            nx < boardSize &&
-            ny < boardSize &&
-            board.value[ny][nx] === 1
-          ) {
-            candidates.push({ x, y })
-            break
-          }
-        }
-      }
-    }
-  }
-  if (candidates.length > 0) {
-    return candidates[Math.floor(Math.random() * candidates.length)]
-  }
-  // 4. 随机落子
-  const emptySpaces: { x: number; y: number }[] = []
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      if (board.value[y][x] === 0) {
-        emptySpaces.push({ x, y })
-      }
-    }
-  }
-  if (emptySpaces.length === 0) return null
-  return emptySpaces[Math.floor(Math.random() * emptySpaces.length)]
-}
 
 // 辅助函数：判断某点落下后是否有N连
 function isNInRow(board: number[][], x: number, y: number, who: number, n: number): boolean {
@@ -645,11 +589,11 @@ function getCardRarityClass(cardName: string) {
   if (card.rarity === '金') return 'epic-card'
   return ''
 }
-
-function isAiLog(line: string) {
-  // 判断是否为AI相关日志（可根据实际AI日志前缀调整）
-  return line.includes('AI') || line.includes(opponent)
+function showPopup(msg: string) {
+  popupMessage.value = msg
+  popupTrigger.value++   // 每次加一，触发 watch
 }
+
 </script>
 
 <style>
@@ -667,15 +611,6 @@ function isAiLog(line: string) {
   max-width: 300px;
   margin-left: 20px;
   text-align: left;
-}
-
-.log {
-  max-height: 200px;
-  overflow-y: auto;
-  background: #f9f9f9;
-  padding: 10px;
-  border-radius: 5px;
-  margin-bottom: 10px;
 }
 
 .card {
@@ -799,11 +734,6 @@ function isAiLog(line: string) {
 }
 .challenge-text:hover {
   background: #e0e0e0;
-}
-
-.ai-log {
-  color: #555;
-  font-style: italic;
 }
 
 @media screen and (min-width: 100px) and (max-width: 900px) {
