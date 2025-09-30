@@ -236,52 +236,60 @@ function aiCanUseCard(card: string) {
 function aiUseCard(card: string): 'extra' | 'normal' | false {
   if (!aiCanUseCard(card)) return false
 
-  if (card === '飞沙走石') {
-    aiUsageCounts.value.FEI++
-    // 随机移除一枚玩家棋子
-    const playerStones: {x:number,y:number}[] = []
-    for (let y=0;y<boardSize;y++){
-      for (let x=0;x<boardSize;x++){
-        if (board.value[y][x]===1) playerStones.push({x,y})
+  // 👉 在这里加延时，模拟思考
+  const delay = 800 + Math.random() * 1200 // 0.8s ~ 2s
+  log("AI 正在思考中…")
+  setTimeout(() => {
+
+    if (card === '飞沙走石') {
+      aiUsageCounts.value.FEI++
+      // 随机移除一枚玩家棋子
+      const playerStones: { x: number, y: number }[] = []
+      for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+          if (board.value[y][x] === 1) playerStones.push({ x, y })
+        }
+      }
+      if (playerStones.length > 0) {
+        const target = playerStones[Math.floor(Math.random() * playerStones.length)]
+        board.value[target.y][target.x] = 0
+        log('AI使用【飞沙走石】：移除了玩家的一枚棋子')
+      } else {
+        log('AI使用【飞沙走石】：场上没有玩家棋子可移除')
       }
     }
-    if (playerStones.length>0){
-      const target = playerStones[Math.floor(Math.random()*playerStones.length)]
-      board.value[target.y][target.x]=0
-      log('AI使用【飞沙走石】：移除了玩家的一枚棋子')
-    } else {
-      log('AI使用【飞沙走石】：场上没有玩家棋子可移除')
+
+    if (card === '静如止水') {
+      showPopup(card)
+      log('AI使用【静如止水】：AI将连续落两个子（不能用卡牌）')
+      aiExtraMove.value = 2
+      actionUsed.value = false
+      const idx = aiHand.value.indexOf(card)
+      if (idx >= 0) aiHand.value.splice(idx, 1)
+      return 'extra'
     }
-  }
 
-  if (card === '静如止水') {
-    showPopup(card)
-    log('AI使用【静如止水】：AI将连续落两个子（不能用卡牌）')
-    aiExtraMove.value = 2
-    actionUsed.value = false
-    const idx = aiHand.value.indexOf(card)
-    if (idx>=0) aiHand.value.splice(idx,1)
-    return 'extra'
-  }
-
-  if (card === '力拔山兮') {
-    aiUsageCounts.value.LI++
-    // 随机移除最多 3 个玩家棋子
-    const playerStones: {x:number,y:number}[] = []
-    for (let y=0;y<boardSize;y++){
-      for (let x=0;x<boardSize;x++){
-        if (board.value[y][x]===1) playerStones.push({x,y})
+    if (card === '力拔山兮') {
+      aiUsageCounts.value.LI++
+      // 随机移除最多 3 个玩家棋子
+      const playerStones: { x: number, y: number }[] = []
+      for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+          if (board.value[y][x] === 1) playerStones.push({ x, y })
+        }
       }
+      let removed = 0
+      for (let i = 0; i < 3 && playerStones.length > 0; i++) {
+        const idx = Math.floor(Math.random() * playerStones.length)
+        const target = playerStones.splice(idx, 1)[0]
+        board.value[target.y][target.x] = 0
+        removed++
+      }
+      log(`AI使用【力拔山兮】：震碎棋盘，移除了玩家的 ${removed} 枚棋子`)
     }
-    let removed = 0
-    for (let i=0;i<3 && playerStones.length>0;i++){
-      const idx = Math.floor(Math.random()*playerStones.length)
-      const target = playerStones.splice(idx,1)[0]
-      board.value[target.y][target.x]=0
-      removed++
-    }
-    log(`AI使用【力拔山兮】：震碎棋盘，移除了玩家的 ${removed} 枚棋子`)
-  }
+
+  }, delay)
+
  showPopup(card)
   const idx = aiHand.value.indexOf(card)
   if (idx>=0) aiHand.value.splice(idx,1)
