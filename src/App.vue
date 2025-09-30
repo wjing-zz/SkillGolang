@@ -235,8 +235,11 @@ function aiCanUseCard(card: string) {
   return aiHand.value.includes(card)
 }
 
-function aiUseCard(card: string): 'extra' | 'normal' | false {
+async function aiUseCard(card: string): Promise<'extra' | 'normal' | false> {
   if (!aiCanUseCard(card)) return false
+
+  // log(`AI 正在准备使用【${card}】…`)
+  await new Promise(r => setTimeout(r, 1200)) // 延迟 1.2 秒
 
     if (card === '飞沙走石') {
       aiUsageCounts.value.FEI++
@@ -361,7 +364,7 @@ function handlePlace(x: number, y: number) {
   nextTurn()
 }
 
-function aiTurn() {
+async function aiTurn() {
   if (winner.value || turn.value !== 2) return
   if (actionUsed.value) return
 
@@ -371,7 +374,7 @@ function aiTurn() {
   if (aiExtraMove.value === 0) {
     for (const card of aiHand.value.slice()) {
       if (aiCanUseCard(card)) {
-        const result = aiUseCard(card)
+        const result = await aiUseCard(card)
         if (result === 'extra') {
           aiTurn()
           return

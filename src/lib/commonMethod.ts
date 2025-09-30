@@ -7,7 +7,7 @@ export function findAiMove(
 ): { x: number; y: number } | null {
   // 如果对手是张技能五，启用权重机制
   // if (opponent === '张技能五') {
-    
+
   //   const weightedMoves: { x: number; y: number; score: number }[] = []
 
   //   for (let y = 0; y < boardSize; y++) {
@@ -90,8 +90,51 @@ export function findAiMove(
       board[y][x] = 0
     }
   }
+  // 3. 自己三连/四连（含跳空三连）
+  const selfPriority: { x: number; y: number }[] = []
 
-  // 3. 优先在玩家棋子附近落子
+  for (let y = 0; y < boardSize; y++) {
+    for (let x = 0; x < boardSize; x++) {
+      if (board[y][x] !== 0) continue
+
+      board[y][x] = 2
+      if (checkWin(board, x, y, 2)) {
+        board[y][x] = 0
+        return { x, y }
+      }
+
+      // 普通三连/四连
+      if (isNInRow(board, x, y, 2, 4) || isNInRow(board, x, y, 2, 3)) {
+        selfPriority.push({ x, y })
+      }
+
+      // 额外：检测跳空三连
+      const dirs = [
+        [1, 0], [0, 1], [1, 1], [1, -1] // 横、竖、斜
+      ]
+      for (const [dx, dy] of dirs) {
+        const x1 = x - dx, y1 = y - dy
+        const x2 = x + dx, y2 = y + dy
+        if (
+          x1 >= 0 && y1 >= 0 && x1 < boardSize && y1 < boardSize &&
+          x2 >= 0 && y2 >= 0 && x2 < boardSize && y2 < boardSize
+        ) {
+          if (board[y1][x1] === 2 && board[y2][x2] === 2) {
+            // 说明是 2 0 2 这种情况
+            selfPriority.push({ x, y })
+          }
+        }
+      }
+
+      board[y][x] = 0
+    }
+  }
+
+  if (selfPriority.length > 0) {
+    return selfPriority[Math.floor(Math.random() * selfPriority.length)]
+  }
+
+  // 4. 优先在玩家棋子附近落子
   const candidates: { x: number; y: number }[] = []
   for (let y = 0; y < boardSize; y++) {
     for (let x = 0; x < boardSize; x++) {
@@ -118,27 +161,6 @@ export function findAiMove(
   if (candidates.length > 0) {
     return candidates[Math.floor(Math.random() * candidates.length)]
   }
-
-  // 4. 自己三连/四连
-  const selfPriority: { x: number; y: number }[] = []
-  for (let y = 0; y < boardSize; y++) {
-    for (let x = 0; x < boardSize; x++) {
-      if (board[y][x] !== 0) continue
-      board[y][x] = 2
-      if (checkWin(board, x, y, 2)) {
-        board[y][x] = 0
-        return { x, y }
-      }
-      if (isNInRow(board, x, y, 2, 4) || isNInRow(board, x, y, 2, 3)) {
-        selfPriority.push({ x, y })
-      }
-      board[y][x] = 0
-    }
-  }
-  if (selfPriority.length > 0) {
-    return selfPriority[Math.floor(Math.random() * selfPriority.length)]
-  }
-
   // 5. 随机落子
   const emptySpaces: { x: number; y: number }[] = []
   for (let y = 0; y < boardSize; y++) {
