@@ -6,32 +6,35 @@
       <button class="rule-btn" @click="showRules = true">玩法说明</button>
     </h1>
     <div class="game">
-      <GomokuBoard
-        :size="boardSize"
-        :board="board"
-        @place="handlePlace"
-      />
+      <GomokuBoard :size="boardSize" :board="board" @place="handlePlace" />
       <aside style="margin-top:1rem;" class="sidebar">
-        <TurnIndicator :turn="turn" :opponent="opponent" />
-        <label class="challenge-label">挑战：</label>
-          <select v-model="opponent" class="opponent-select" @change="restartGame">
-          <option value="子棋">子棋</option>
-          <option value="张技能五">张技能五</option>
-        </select>
+        <button @click="modeChange('ai')">AI对战</button>
+        <button style="margin-left: 0.5rem;" @click="modeChange('local')">本地对战</button>
 
-        <button style="margin-left: 1rem;" @click="restartGame" class="restart-btn">
-          重新开始
-        </button>
+        <div style="margin-top:1rem; display: flex;align-items: center;">
+          <div v-if="mode === 'ai'">
+            <TurnIndicator :turn="turn" :opponent="opponent" />
+            <label class="challenge-label">挑战：</label>
+            <select v-model="opponent" class="opponent-select" @change="restartGame">
+              <option value="子棋">子棋</option>
+              <option value="张技能五">张技能五</option>
+            </select>
+          </div>
+          <div v-else class="turn-indicator">
+            现在是：
+            <span v-if="turn === 1">{{ mode === 'local' ? '玩家1 (⚫)' : '玩家 (⚫)' }}</span>
+            <span v-else>{{ mode === 'local' ? '玩家2 (⚪)' : opponent + ' (⚪)' }}</span>
+          </div>
+          <button style="margin-left: 1rem; max-height: 2rem; display: flex; align-items: center;" @click="restartGame" class="restart-btn">
+            重新开始
+          </button>
+        </div>
         <h3 style="margin-top:1rem;">玩家手牌</h3>
         <div class="card-row">
-          <div
-            v-for="i in 3"
-            :key="i"
-            class="card-slot"
-          >
-            <div v-if="hand[i-1]" class="card-ui" :class="getCardRarityClass(hand[i-1])">
-              <span class="card-name">{{ hand[i-1] }}</span>
-              <button @click="useCard(hand[i-1])" :disabled="!canUseCard(hand[i-1])">
+          <div v-for="i in 3" :key="i" class="card-slot">
+            <div v-if="hand[i - 1]" class="card-ui" :class="getCardRarityClass(hand[i - 1])">
+              <span class="card-name">{{ hand[i - 1] }}</span>
+              <button @click="useCard(hand[i - 1])" :disabled="!canUseCard(hand[i - 1],1)">
                 使用
               </button>
             </div>
@@ -41,33 +44,55 @@
           </div>
         </div>
 
-        <h3 style="margin-top:1rem;">{{ opponent }}手牌</h3>
-        <div class="card-row">
-          <div
-            v-for="i in 3"
-            :key="i"
-            class="card-slot"
-          >
-            <div v-if="aiHand[i-1]" class="card-ui" :class="getCardRarityClass(aiHand[i-1])">
-              <span class="card-name">{{ aiHand[i-1] }}</span>
-              <button disabled>
-                {{ opponent }}自动使用
-              </button>
+        <div v-if="mode === 'ai'">
+          <h3 style="margin-top:1rem;">{{ opponent }}手牌</h3>
+          <div class="card-row">
+            <div v-for="i in 3" :key="i" class="card-slot">
+              <div v-if="aiHand[i - 1]" class="card-ui" :class="getCardRarityClass(aiHand[i - 1])">
+                <span class="card-name">{{ aiHand[i - 1] }}</span>
+                <button disabled>
+                  {{ opponent }}自动使用
+                </button>
+              </div>
+              <div v-else class="card-ui empty-card">
+                <span class="card-empty">空</span>
+              </div>
             </div>
-            <div v-else class="card-ui empty-card">
-              <span class="card-empty">空</span>
+          </div>
+        </div>
+        <div v-else>
+          <h3 style="margin-top:1rem;">玩家2手牌</h3>
+          <div class="card-row">
+            <div v-for="i in 3" :key="i" class="card-slot">
+              <div v-if="hand2[i - 1]" class="card-ui" :class="getCardRarityClass(hand2[i - 1])">
+                <span class="card-name">{{ hand2[i - 1] }}</span>
+                <button @click="useCard(hand2[i - 1])" :disabled="!canUseCard(hand2[i - 1],2)">
+                  使用
+                </button>
+              </div>
+              <div v-else class="card-ui empty-card">
+                <span class="card-empty">空</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <GameLog :logs="logs" :opponent="opponent"/>
-        <div v-if="winner" class="winner">🎉 {{ winner === '玩家' ? '玩家' : opponent }} 获胜！</div>
+        <GameLog :logs="logs" :opponent="opponent" />
+        <div v-if="mode === 'local'">
+          <div v-if="winner" class="winner">
+            🎉 {{ winner }} 获胜！
+          </div>
+        </div>
+        <div v-else>
+          <div v-if="winner" class="winner">🎉 {{ winner === '玩家' ? '玩家' : opponent }} 获胜！</div>
+        </div>
 
       </aside>
     </div>
     <RulesModel :show="showRules" @close="showRules = false" />
     <Popup :message="popupMessage" :trigger="popupTrigger" />
-    <WinCelebration :show="winner === '玩家'" :duration="2800" :count="100" />
+    <WinCelebration :show="winner === '玩家' || winner === '玩家1' || winner === '玩家2'" :winner :duration="2800"
+      :count="100" />
   </div>
 </template>
 
@@ -98,7 +123,11 @@ const aiRound = ref(0)     // AI落子次数
 const opponent = ref('子棋')
 // ===== 玩家卡牌系统 =====
 const hand = ref<string[]>([]) // 玩家手牌
+const hand2 = ref<string[]>([]) // 玩家2手牌
 const usageCounts = ref({ FEI: 0, JING: 0, LI: 0 })
+const mode = ref<'ai' | 'local'>('ai')  // 默认AI对战，本地对战时设为 'local'
+const player2ExtraMove = ref(0)
+const player2NoCardRounds = ref(0)       // 玩家2连续未抽卡的回合数
 
 // 卡牌池及权重
 const cardPool = [
@@ -142,72 +171,103 @@ function drawCard() {
   hand.value.push(card)
   log(`获得卡牌：${card}`)
 }
+function drawCard2() {
+  const cards = ['飞沙走石', '静如止水', '力拔山兮']
+  if (hand2.value.length >= 3) return
+  const available = cards.filter(card => !hand2.value.includes(card))
+  if (available.length === 0) return
+  const card = available[Math.floor(Math.random() * available.length)]
+  hand2.value.push(card)
+  log(`玩家2获得卡牌：${card}`)
+}
+function canUseCard(card: string, owner: 1 | 2) {
+  if (winner.value) return false
+  if (playerRound.value < 3) return false // 前三回合不能用卡
+  if (playerExtraMove.value > 0 || player2ExtraMove.value > 0) return false // 静如止水期间禁止用卡牌
 
-function canUseCard(card: string) {
-  if (turn.value !== 1 || winner.value) return false
-  if (playerRound.value < 3) return false // 玩家前三次不能用卡牌
-  // 不再限制 usageCounts
-  // if (card === '飞沙走石' && usageCounts.value.FEI >= 1) return false
-  // if (card === '静如止水' && usageCounts.value.JING >= 2) return false
-  // if (card === '力拔山兮' && usageCounts.value.LI >= 1) return false
-  if (playerExtraMove.value > 0) return false // 静如止水期间禁止用卡牌
-  return hand.value.includes(card)
+  if (mode.value === 'ai') {
+    // AI 对战模式：只有玩家能用卡
+    if (turn.value !== 1) return false
+    return hand.value.includes(card)
+  } else {
+    // 本地对战模式：玩家1 和 玩家2 都能用卡
+    if (turn.value !== owner) return false
+    if (owner === 1) return hand.value.includes(card)
+    if (owner === 2) return hand2.value.includes(card)
+  }
+  return false
 }
 
+
 function useCard(card: string) {
-  if (!canUseCard(card)) return
+  // if (!canUseCard(card)) return
   if (actionUsed.value) return
 
+  const isP1 = (mode.value === 'ai' || (mode.value === 'local' && turn.value === 1))
+  const myHand = isP1 ? hand.value : hand2.value
+  const enemy = isP1 ? 2 : 1   // 对手棋子编号
+
   if (card === '飞沙走石') {
-    // 随机移除一枚 AI 棋子
-    const aiStones: {x:number,y:number}[] = []
-    for (let y=0;y<boardSize;y++){
-      for (let x=0;x<boardSize;x++){
-        if (board.value[y][x]===2) aiStones.push({x,y})
+    const enemyStones: { x: number, y: number }[] = []
+    for (let y = 0; y < boardSize; y++) {
+      for (let x = 0; x < boardSize; x++) {
+        if (board.value[y][x] === enemy) enemyStones.push({ x, y })
       }
     }
-    if (aiStones.length>0){
-      const target = aiStones[Math.floor(Math.random()*aiStones.length)]
-      board.value[target.y][target.x]=0
-      log('使用【飞沙走石】：移除了 AI 的一枚棋子')
-    } else {
-      log('使用【飞沙走石】：场上没有 AI 棋子可移除')
+    if (enemyStones.length > 0) {
+      const target = enemyStones[Math.floor(Math.random() * enemyStones.length)]
+      board.value[target.y][target.x] = 0
+      log(`${isP1 ? '玩家1' : '玩家2'} 使用【飞沙走石】：移除了对手的一枚棋子`)
     }
   }
 
   if (card === '静如止水') {
     showPopup(card)
-    log('使用【静如止水】：你将连续落两个子（不能用卡牌）')
-    playerExtraMove.value = 2
+    log(`${isP1 ? '玩家1' : '玩家2'} 使用【静如止水】：连续落两个子（不能用卡牌）`)
+    if (isP1) {
+      playerExtraMove.value = 2
+    } else {
+      if (mode.value === 'local') {
+        player2ExtraMove.value = 2
+      } else {
+        aiExtraMove.value = 2
+      }
+    }
     actionUsed.value = false
-    const idx = hand.value.indexOf(card)
-    if (idx>=0) hand.value.splice(idx,1)
-    return // 不切换回合
+    const idx = myHand.indexOf(card)
+    if (idx >= 0) myHand.splice(idx, 1)
+    return
   }
 
   if (card === '力拔山兮') {
-    // 随机移除最多 3 个 AI 棋子
-    const aiStones: {x:number,y:number}[] = []
-    for (let y=0;y<boardSize;y++){
-      for (let x=0;x<boardSize;x++){
-        if (board.value[y][x]===2) aiStones.push({x,y})
+    const enemyStones: { x: number, y: number }[] = []
+    for (let y = 0; y < boardSize; y++) {
+      for (let x = 0; x < boardSize; x++) {
+        if (board.value[y][x] === enemy) enemyStones.push({ x, y })
       }
     }
     let removed = 0
-    for (let i=0;i<3 && aiStones.length>0;i++){
-      const idx = Math.floor(Math.random()*aiStones.length)
-      const target = aiStones.splice(idx,1)[0]
-      board.value[target.y][target.x]=0
+    for (let i = 0; i < 3 && enemyStones.length > 0; i++) {
+      const idx = Math.floor(Math.random() * enemyStones.length)
+      const target = enemyStones.splice(idx, 1)[0]
+      board.value[target.y][target.x] = 0
       removed++
     }
-    log(`使用【力拔山兮】：震碎棋盘，移除了 AI 的 ${removed} 枚棋子`)
+    log(`${isP1 ? '玩家1' : '玩家2'} 使用【力拔山兮】：移除了对手的 ${removed} 枚棋子`)
   }
 
   showPopup(card)
-  const idx = hand.value.indexOf(card)
-  if (idx>=0) hand.value.splice(idx,1)
+  const idx = myHand.indexOf(card)
+  if (idx >= 0) myHand.splice(idx, 1)
   actionUsed.value = true
-  nextTurn()
+  if (mode.value === 'local') {
+    // 本地模式：只切换回合
+    turn.value = turn.value === 1 ? 2 : 1
+    actionUsed.value = false
+  } else {
+    // AI 模式：走原逻辑
+    nextTurn()
+  }
 }
 
 // ===== AI卡牌系统 =====
@@ -241,58 +301,58 @@ async function aiUseCard(card: string): Promise<'extra' | 'normal' | false> {
   // log(`AI 正在准备使用【${card}】…`)
   await new Promise(r => setTimeout(r, 1200)) // 延迟 1.2 秒
 
-    if (card === '飞沙走石') {
-      aiUsageCounts.value.FEI++
-      // 随机移除一枚玩家棋子
-      const playerStones: { x: number, y: number }[] = []
-      for (let y = 0; y < boardSize; y++) {
-        for (let x = 0; x < boardSize; x++) {
-          if (board.value[y][x] === 1) playerStones.push({ x, y })
-        }
-      }
-      if (playerStones.length > 0) {
-        const target = playerStones[Math.floor(Math.random() * playerStones.length)]
-        board.value[target.y][target.x] = 0
-        log('AI使用【飞沙走石】：移除了玩家的一枚棋子')
-      } else {
-        log('AI使用【飞沙走石】：场上没有玩家棋子可移除')
+  if (card === '飞沙走石') {
+    aiUsageCounts.value.FEI++
+    // 随机移除一枚玩家棋子
+    const playerStones: { x: number, y: number }[] = []
+    for (let y = 0; y < boardSize; y++) {
+      for (let x = 0; x < boardSize; x++) {
+        if (board.value[y][x] === 1) playerStones.push({ x, y })
       }
     }
-
-    if (card === '静如止水') {
-      showPopup(card)
-      log('AI使用【静如止水】：AI将连续落两个子（不能用卡牌）')
-      aiExtraMove.value = 2
-      actionUsed.value = false
-      const idx = aiHand.value.indexOf(card)
-      if (idx >= 0) aiHand.value.splice(idx, 1)
-      return 'extra'
+    if (playerStones.length > 0) {
+      const target = playerStones[Math.floor(Math.random() * playerStones.length)]
+      board.value[target.y][target.x] = 0
+      log('AI使用【飞沙走石】：移除了玩家的一枚棋子')
+    } else {
+      log('AI使用【飞沙走石】：场上没有玩家棋子可移除')
     }
+  }
 
-    if (card === '力拔山兮') {
-      aiUsageCounts.value.LI++
-      // 随机移除最多 3 个玩家棋子
-      const playerStones: { x: number, y: number }[] = []
-      for (let y = 0; y < boardSize; y++) {
-        for (let x = 0; x < boardSize; x++) {
-          if (board.value[y][x] === 1) playerStones.push({ x, y })
-        }
+  if (card === '静如止水') {
+    showPopup(card)
+    log('AI使用【静如止水】：AI将连续落两个子（不能用卡牌）')
+    aiExtraMove.value = 2
+    actionUsed.value = false
+    const idx = aiHand.value.indexOf(card)
+    if (idx >= 0) aiHand.value.splice(idx, 1)
+    return 'extra'
+  }
+
+  if (card === '力拔山兮') {
+    aiUsageCounts.value.LI++
+    // 随机移除最多 3 个玩家棋子
+    const playerStones: { x: number, y: number }[] = []
+    for (let y = 0; y < boardSize; y++) {
+      for (let x = 0; x < boardSize; x++) {
+        if (board.value[y][x] === 1) playerStones.push({ x, y })
       }
-      let removed = 0
-      for (let i = 0; i < 3 && playerStones.length > 0; i++) {
-        const idx = Math.floor(Math.random() * playerStones.length)
-        const target = playerStones.splice(idx, 1)[0]
-        board.value[target.y][target.x] = 0
-        removed++
-      }
-      log(`AI使用【力拔山兮】：震碎棋盘，移除了玩家的 ${removed} 枚棋子`)
     }
+    let removed = 0
+    for (let i = 0; i < 3 && playerStones.length > 0; i++) {
+      const idx = Math.floor(Math.random() * playerStones.length)
+      const target = playerStones.splice(idx, 1)[0]
+      board.value[target.y][target.x] = 0
+      removed++
+    }
+    log(`AI使用【力拔山兮】：震碎棋盘，移除了玩家的 ${removed} 枚棋子`)
+  }
 
 
 
- showPopup(card)
+  showPopup(card)
   const idx = aiHand.value.indexOf(card)
-  if (idx>=0) aiHand.value.splice(idx,1)
+  if (idx >= 0) aiHand.value.splice(idx, 1)
   return 'normal'
 }
 
@@ -304,28 +364,107 @@ function log(msg: string) {
 const cardDrawnThisTurn = ref(false) // 每回合是否已抽卡
 
 function handlePlace(x: number, y: number) {
-  if (winner.value || turn.value !== 1) return
+  if (winner.value) return
   if (board.value[y][x] !== 0) return
   if (actionUsed.value) return
+
+  if (mode.value === 'local') {
+    // ===== 本地对战逻辑 =====
+    board.value[y][x] = turn.value
+    log(`${turn.value === 1 ? '玩家1' : '玩家2'} 落子 (${x},${y})`)
+    round.value++
+
+    if (turn.value === 1) playerRound.value++ // 玩家1落子次数 - 回合数
+
+    // 卡牌触发逻辑（复用原有规则）
+    cardDrawnThisTurn.value = false
+    let blocked = false
+
+    // 阻止对手四连 → 抽卡
+  if (!cardDrawnThisTurn.value && blocksOpponentFour(board.value, x, y, turn.value === 1 ? 2 : 1)) {
+    weightedDrawCard(turn.value === 1 ? hand.value : hand2.value)
+    blocked = true
+    if (turn.value === 1) playerNoCardRounds.value = 0
+    else player2NoCardRounds.value = 0
+    cardDrawnThisTurn.value = true
+  }
+// 自己三连 → 抽卡
+  if (!cardDrawnThisTurn.value && !blocked && isNInRow(board.value, x, y, turn.value, 3) && Math.random() < 0.5) {
+    weightedDrawCard(turn.value === 1 ? hand.value : hand2.value)
+    if (turn.value === 1) playerNoCardRounds.value = 0
+    else player2NoCardRounds.value = 0
+    cardDrawnThisTurn.value = true
+  } else if (!cardDrawnThisTurn.value && !blocked) {
+    // 连续没抽卡 → 第3回合强制抽
+    if (turn.value === 1) {
+      playerNoCardRounds.value++
+      if (playerNoCardRounds.value >= 3) {
+        weightedDrawCard(hand.value)
+        playerNoCardRounds.value = 0
+        cardDrawnThisTurn.value = true
+      }
+    } else {
+      player2NoCardRounds.value++
+      if (player2NoCardRounds.value >= 3) {
+        weightedDrawCard(hand2.value)
+        player2NoCardRounds.value = 0
+        cardDrawnThisTurn.value = true
+      }
+    }
+  }
+      // 随机抽卡
+  if (!cardDrawnThisTurn.value && Math.random() < 0.3) {
+    if (turn.value === 1) drawCard()
+    else drawCard2()   // 给玩家2写一个 drawCard2
+    cardDrawnThisTurn.value = true
+  }
+
+    // 胜负判断
+    if (checkWin(board.value, x, y, turn.value)) {
+      winner.value = turn.value === 1 ? '玩家1' : '玩家2'
+      return
+    }
+    // 处理静如止水额外行动
+    if (turn.value === 1 && playerExtraMove.value > 0) {
+      playerExtraMove.value--
+      actionUsed.value = false
+      if (playerExtraMove.value === 0) {
+        turn.value = 2
+      }
+      return
+    }
+    if (turn.value === 2 && player2ExtraMove.value > 0) {
+      player2ExtraMove.value--
+      actionUsed.value = false
+      if (player2ExtraMove.value === 0) {
+        turn.value = 1
+      }
+      return
+    }
+    // 切换回合
+    turn.value = turn.value === 1 ? 2 : 1
+    actionUsed.value = false
+    return
+  }
+
+  // ===== 原有 AI 对战逻辑 =====
+  if (turn.value !== 1) return
 
   board.value[y][x] = 1
   playerRound.value++
   log(`玩家落子 (${x},${y})`)
   round.value++
 
-  actionUsed.value = true // 标记本回合已行动
-  cardDrawnThisTurn.value = false // 新回合开始，未抽卡
+  actionUsed.value = true
+  cardDrawnThisTurn.value = false
 
   let blocked = false
-  // 判断是否阻止了AI四连
-  board.value[y][x] = 1
   if (!cardDrawnThisTurn.value && blocksOpponentFour(board.value, x, y, 2)) {
     weightedDrawCard(hand.value)
     blocked = true
     playerNoCardRounds.value = 0
     cardDrawnThisTurn.value = true
   }
-  // 判断是否形成三连
   if (!cardDrawnThisTurn.value && !blocked && isNInRow(board.value, x, y, 1, 3) && Math.random() < 0.5) {
     weightedDrawCard(hand.value)
     playerNoCardRounds.value = 0
@@ -338,9 +477,9 @@ function handlePlace(x: number, y: number) {
       cardDrawnThisTurn.value = true
     }
   }
-
-  if (!cardDrawnThisTurn.value && Math.random()<0.3) {
-    drawCard()
+  if (!cardDrawnThisTurn.value && Math.random() < 0.3) {
+    if (turn.value === 1) drawCard()
+    else drawCard2()   // 新增玩家2抽卡函数
     cardDrawnThisTurn.value = true
   }
 
@@ -351,8 +490,7 @@ function handlePlace(x: number, y: number) {
 
   if (playerExtraMove.value > 0) {
     playerExtraMove.value--
-    actionUsed.value = false // 允许继续落子
-    // 只有当 playerExtraMove.value === 0 时才切换回合
+    actionUsed.value = false
     if (playerExtraMove.value === 0) {
       actionUsed.value = true
       nextTurn()
@@ -363,6 +501,8 @@ function handlePlace(x: number, y: number) {
   actionUsed.value = true
   nextTurn()
 }
+
+
 
 async function aiTurn() {
   if (winner.value || turn.value !== 2) return
@@ -392,7 +532,7 @@ async function aiTurn() {
   log("AI 正在思考中…")
 
   setTimeout(() => {
-    const move = findAiMove(board.value, boardSize, checkWin, isNInRow,opponent.value)
+    const move = findAiMove(board.value, boardSize, checkWin, isNInRow, opponent.value)
     if (!move) {
       winner.value = null
       log('棋盘已满或无可下位置，平局')
@@ -458,17 +598,24 @@ async function aiTurn() {
 
 
 function nextTurn() {
-  // 切换回合
-  cardDrawnThisTurn.value = false // 新回合重置
+  if (mode.value === 'local') {
+    // 本地模式：只切换回合
+    turn.value = turn.value === 1 ? 2 : 1
+    actionUsed.value = false
+    return
+  }
+
+  // ===== AI 对战逻辑 =====
   if (turn.value === 1) {
     turn.value = 2
     actionUsed.value = false
-    setTimeout(aiTurn, 300)
+    aiTurn()
   } else {
     turn.value = 1
     actionUsed.value = false
   }
 }
+
 
 function checkWin(board: number[][], x: number, y: number, who: number): boolean {
   const directions = [
@@ -545,6 +692,7 @@ function restartGame() {
   logs.value = []
   winner.value = null
   hand.value = []
+  hand2.value = []
   usageCounts.value = { FEI: 0, JING: 0, LI: 0 }
   aiHand.value = []
   aiUsageCounts.value = { FEI: 0, JING: 0, LI: 0 }
@@ -554,6 +702,8 @@ function restartGame() {
   cardDrawnThisTurn.value = false
   playerExtraMove.value = 0
   aiExtraMove.value = 0
+  player2ExtraMove.value = 0
+  player2NoCardRounds.value = 0
   log('新的一局开始！')
 }
 initBoard()
@@ -603,6 +753,12 @@ function showPopup(msg: string) {
   popupMessage.value = msg
   popupTrigger.value++   // 每次加一，触发 watch
 }
+function modeChange(newMode) {
+  if (mode.value !== newMode) {
+    mode.value = newMode
+    restartGame()
+  }
+}
 
 </script>
 
@@ -651,6 +807,7 @@ function showPopup(msg: string) {
   font-weight: bold;
   margin: 10px 0;
 }
+
 .card-row {
   display: flex;
   gap: 10px;
@@ -670,7 +827,7 @@ function showPopup(msg: string) {
   border-radius: 10px;
   border: 2px solid #bbb;
   min-height: 70px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   padding: 8px 4px;
   position: relative;
 }
@@ -731,10 +888,12 @@ function showPopup(msg: string) {
   align-items: center;
   margin-bottom: 10px;
 }
+
 .challenge-label {
   font-weight: bold;
   margin-right: 8px;
 }
+
 .challenge-text {
   cursor: pointer;
   padding: 2px 8px;
@@ -742,6 +901,7 @@ function showPopup(msg: string) {
   background: #f5f5f5;
   transition: background 0.2s;
 }
+
 .challenge-text:hover {
   background: #e0e0e0;
 }

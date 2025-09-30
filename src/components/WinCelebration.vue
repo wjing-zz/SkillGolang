@@ -10,7 +10,7 @@
         >🎉</span>
       </div>
       <div class="headline">
-        🎉 玩家获胜！🎉
+        🎉 {{ winner }} 获胜！🎉
       </div>
     </div>
   </transition>
@@ -23,6 +23,7 @@ const props = defineProps<{
   show: boolean
   duration?: number      // milliseconds, default 2500
   count?: number         // number of confetti pieces, default 80
+  winner?: string
 }>()
 
 const visible = ref(false)
