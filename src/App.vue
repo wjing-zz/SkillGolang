@@ -12,6 +12,7 @@
         @place="handlePlace"
       />
       <aside style="margin-top:1rem;" class="sidebar">
+        <TurnIndicator :turn="turn" :opponent="opponent" />
         <label class="challenge-label">挑战：</label>
           <select v-model="opponent" class="opponent-select" @change="restartGame">
           <option value="子棋">子棋</option>
@@ -79,6 +80,7 @@ import GameLog from './components/GameLog.vue'
 import { findAiMove } from './lib/commonMethod'
 import Popup from './components/Popup.vue'
 import WinCelebration from './components/WinCelebration.vue'
+import TurnIndicator from './components/TurnIndicator.vue'
 
 const popupMessage = ref('')
 const popupTrigger = ref(0)
@@ -236,11 +238,6 @@ function aiCanUseCard(card: string) {
 function aiUseCard(card: string): 'extra' | 'normal' | false {
   if (!aiCanUseCard(card)) return false
 
-  // 👉 在这里加延时，模拟思考
-  const delay = 800 + Math.random() * 1200 // 0.8s ~ 2s
-  log("AI 正在思考中…")
-  setTimeout(() => {
-
     if (card === '飞沙走石') {
       aiUsageCounts.value.FEI++
       // 随机移除一枚玩家棋子
@@ -288,7 +285,7 @@ function aiUseCard(card: string): 'extra' | 'normal' | false {
       log(`AI使用【力拔山兮】：震碎棋盘，移除了玩家的 ${removed} 枚棋子`)
     }
 
-  }, delay)
+
 
  showPopup(card)
   const idx = aiHand.value.indexOf(card)
